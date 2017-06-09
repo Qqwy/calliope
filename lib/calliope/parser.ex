@@ -63,18 +63,59 @@ defmodule Calliope.Parser do
     raise_error(:unknown_filter, line[:line_number])
   end
 
+
   def build_attributes(value) do
-    String.slice(value, 0, String.length(value)-1) |>
-      String.replace(~r/(?<![-_])class[=:]\s?['"](.*)['"]/U, "") |>
-      String.replace(~r/(?<![-_])id[=:]\s?['"](.*)['"]/U, "") |>
-      String.replace(~r/:\s+([\'"])/, "=\\1") |>
-      String.replace(~r/[:=]\s?(?!.*["'])(@?[\w\.]+)\s?/, "='#\{\\1}'") |>
-      String.replace(~r/[})]$/, "") |>
-      String.replace(~r/"(.+?)"\s=>\s(@?\w+)\s?/, "\\1='#\{\\2}'") |>
-      String.replace(~r/:(.+?)\s=>\s['"](.*)['"]\s?/, "\\1='\\2'") |>
-      filter_commas |>
-      String.strip |>
-      IO.inspect
+    sliced_value = String.slice(value, 0, String.length(value)-1)
+    case (String.at(value, String.length(value)-1)) do
+      "}" ->
+        build_attributes_mapstyle(sliced_value)
+      _ ->
+        build_attributes_htmlstyle(sliced_value)
+    end
+  end
+
+  def build_attributes_mapstyle(value) do
+      value
+      |> String.slice(0, String.length(value)-1)
+      |> String.split(",")
+      |> Enum.map(&build_attribute_mapstyle/1)
+      |> Enum.join(" ")
+      |> IO.inspect(label: :new)
+  end
+
+  defp build_attribute_mapstyle(attribute_str) do
+    [attr_key, attr_value] =
+      attribute_str
+      |> String.trim_leading()
+      |> mapstyle_split_attr_key()
+
+    "#{attr_key}= <%= #{attr_value} %>"
+  end
+
+  # Normalized `"key: val"` and `"key => val"` into ["key", "val"]
+  defp mapstyle_split_attr_key(attribute_str) do
+    case String.split(attribute_str, ":", parts: 2) do
+      ["", unparsed] ->
+        unparsed
+        |> String.split("=>", parts: 2)
+        |> Enum.map(&String.trim_leading/1)
+      [attribute_key, attribute_value] ->
+        [attribute_key, attribute_value]
+    end
+  end
+
+  def build_attributes_htmlstyle(value) do
+    value |>
+    String.replace(~r/(?<![-_])class[=:]\s?['"](.*)['"]/U, "") |>
+    String.replace(~r/(?<![-_])id[=:]\s?['"](.*)['"]/U, "") |>
+    String.replace(~r/:\s+([\'"])/, "=\\1") |>
+    String.replace(~r/[:=]\s?(?!.*["'])(@?[\w\.]+)\s?/, "='#\{\\1}'") |>
+    String.replace(~r/[})]$/, "") |>
+    String.replace(~r/"(.+?)"\s=>\s(@?\w+)\s?/, "\\1='#\{\\2}'") |>
+    String.replace(~r/:(.+?)\s=>\s['"](.*)['"]\s?/, "\\1='\\2'") |>
+    filter_commas |>
+    String.strip |>
+    IO.inspect(label: :old)
   end
 
   @empty_param ~S/^\s*?[-\w]+?\s*?$/

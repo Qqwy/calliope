@@ -146,7 +146,14 @@ Outside the div
   end
 
   @haml ".foo{a: 1, b: mystruct.key}"
-  test :proper_attribute_fixing do
+  test :proper_attribute_translation do
     assert Calliope.Render.precompile(@haml) == "<div class=\"foo\" a='<%= 1 %>' b='<%= mystruct.key %>'></div>\n"
   end
+
+  @haml ".foo{a: 1, data: %{bar: 1, baz: 2}}"
+  # @haml ".foo(a=1 data=%{bar: 1, baz: 2})"
+  test :nested_attribute_maps do
+    assert Calliope.Render.precompile(@haml) == "<div class=\"foo\" a='<%= 1 %>' b='<%= mystruct.key %>'></div>\n"
+  end
+
 end
